@@ -1,0 +1,131 @@
+version: '3'
+
+services:
+  namenode:
+    image: localhost/hadoop-cluster:3.4.2
+    container_name: namenode
+    hostname: namenode
+    command: >
+      bash -c "sudo /usr/sbin/sshd &&
+               hdfs namenode -format -force &&
+               hdfs namenode"
+    ports:
+      - "9870:9870"  # NameNode Web UI
+      - "9000:9000"  # HDFS
+      - "9083:9083"  # Hive Metastore
+      - "10000:10000" # HiveServer2
+      - "18080:18080" # Spark History Server
+    networks:
+      - hadoop-network
+    volumes:
+      - namenode_data:/home/hadoop/hadoopdata
+      - ./configs:/tmp/configs:ro
+    environment:
+      - CLUSTER_NAME=hadoop-cluster
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9870"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  datanode1:
+    image: localhost/hadoop-cluster:3.4.2
+    container_name: datanode1
+    hostname: datanode1
+    command: >
+      bash -c "sudo /usr/sbin/sshd &&
+               sleep 30 &&
+               hdfs datanode"
+    ports:
+      - "9864:9864"  # DataNode Web UI
+    networks:
+      - hadoop-network
+    volumes:
+      - datanode1_data:/home/hadoop/hadoopdata
+      - ./configs:/tmp/configs:ro
+    depends_on:
+      - namenode
+
+  datanode2:
+    image: localhost/hadoop-cluster:3.4.2
+    container_name: datanode2
+    hostname: datanode2
+    command: >
+      bash -c "sudo /usr/sbin/sshd &&
+               sleep 30 &&
+               hdfs datanode"
+    ports:
+      - "9865:9864"  # DataNode Web UI
+    networks:
+      - hadoop-network
+    volumes:
+      - datanode2_data:/home/hadoop/hadoopdata
+      - ./configs:/tmp/configs:ro
+    depends_on:
+      - namenode
+
+  resourcemanager:
+    image: localhost/hadoop-cluster:3.4.2
+    container_name: resourcemanager
+    hostname: resourcemanager
+    command: >
+      bash -c "sudo /usr/sbin/sshd &&
+               sleep 30 &&
+               yarn resourcemanager"
+    ports:
+      - "8088:8088"  # ResourceManager Web UI
+      - "8030:8030"
+      - "8031:8031"
+      - "8032:8032"
+      - "8033:8033"
+    networks:
+      - hadoop-network
+    volumes:
+      - ./configs:/tmp/configs:ro
+    depends_on:
+      - namenode
+      - datanode1
+      - datanode2
+
+  nodemanager1:
+    image: localhost/hadoop-cluster:3.4.2
+    container_name: nodemanager1
+    hostname: nodemanager1
+    command: >
+      bash -c "sudo /usr/sbin/sshd &&
+               sleep 35 &&
+               yarn nodemanager"
+    ports:
+      - "8042:8042"  # NodeManager Web UI
+    networks:
+      - hadoop-network
+    volumes:
+      - ./configs:/tmp/configs:ro
+    depends_on:
+      - resourcemanager
+
+  nodemanager2:
+    image: localhost/hadoop-cluster:3.4.2
+    container_name: nodemanager2
+    hostname: nodemanager2
+    command: >
+      bash -c "sudo /usr/sbin/sshd &&
+               sleep 35 &&
+               yarn nodemanager"
+    ports:
+      - "8043:8042"  # NodeManager Web UI
+    networks:
+      - hadoop-network
+    volumes:
+      - ./configs:/tmp/configs:ro
+    depends_on:
+      - resourcemanager
+
+networks:
+  hadoop-network:
+    driver: bridge
+
+volumes:
+  namenode_data:
+  datanode1_data:
+  datanode2_data:
